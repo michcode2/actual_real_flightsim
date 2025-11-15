@@ -56,6 +56,8 @@ impl Wing {
 
 #[cfg(test)]
 mod test {
+    use std::f64;
+
     use nalgebra::Vector3;
 
     use crate::physics::wing::Wing;
@@ -64,8 +66,20 @@ mod test {
     fn unit_wing_right_numbers() {
         let mut underTest = Wing::new_area_only(1.0);
         let straight_ahead = underTest.calculate(Vector3::new(1.0, 0.0, 0.0));
-        assert!(straight_ahead.x.abs() < 1e-3);
-        assert!(straight_ahead.y.abs() < 1e-3);
-        assert!(straight_ahead.z.abs() < 1e-3);
+        assert!(straight_ahead.x.abs() < 1e-6);
+        assert!(straight_ahead.y.abs() < 1e-6);
+        assert!(straight_ahead.z.abs() < 1e-6);
+
+        let deg_rad_conversion = f64::consts::PI / 180.0;
+
+        let velocity_alpha_1 = Vector3::new(
+            1.0 * deg_rad_conversion.cos(),
+            0.0,
+            1.0 * deg_rad_conversion.sin(),
+        );
+        let alpha_1 = underTest.calculate(velocity_alpha_1);
+        println!("{:?}", alpha_1);
+        assert!((alpha_1.x + 0.0006125).abs() < 1e-6);
+        assert!((alpha_1.z - 0.06125).abs() < 1e-6);
     }
 }

@@ -77,3 +77,12 @@ impl Plane {
         Vector3::new(controls.throttle * self.engine.max_thrust, 0.0, 0.0)
     }
 }
+
+#[cfg(test)]
+mod test {
+
+    #[test]
+    fn hello() {
+        assert!(false);
+    }
+}
