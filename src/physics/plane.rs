@@ -80,9 +80,27 @@ impl Plane {
 
 #[cfg(test)]
 mod test {
+    use nalgebra::{Quaternion, Vector3};
+
+    use crate::{
+        physics::{engine::Engine, plane::Plane, wing::Wing},
+        ui_things::cockpit::Cockpit,
+    };
 
     #[test]
     fn hello() {
-        assert!(false);
+        let mut under_test = Plane {
+            wings: vec![Wing::new_area_only(1.0)],
+            mass: 3.0,
+            position: Vector3::new(0.0, 0.0, 100.0),
+            velocity: Vector3::new(10.0, 0.0, 0.0),
+            acceleration: Vector3::new(0.0, 0.0, 0.0),
+            engine: Engine::new(),
+            pointing: nalgebra::UnitQuaternion::from_euler_angles(0.0, 0.0, 0.0),
+        };
+
+        let handsfree = Cockpit::new();
+
+        under_test.run_physics(0.01, &handsfree);
     }
 }
