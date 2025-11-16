@@ -54,16 +54,16 @@ fn setup(
         RunwayMarker,
     ));
     commands.spawn((
-        Mesh3d(meshes.add(Cuboid::new(90.0, 0.1, 10.0))),
+        Mesh3d(meshes.add(Cuboid::new(100.0, 0.1, 10.0))),
         MeshMaterial3d(materials.add(StandardMaterial {
             base_color: Color::srgb(0.2, 0.2, 0.2),
             ..default()
         })),
-        Transform::from_xyz(0.0, 0.05, 0.0),
+        Transform::from_xyz(50.0, 0.05, 0.0),
         RunwayMarker,
     ));
 
-    for i in (-40..45).step_by(10) {
+    for i in (-0..100).step_by(10) {
         commands.spawn((
             Mesh3d(meshes.add(Cuboid::new(5.0, 0.1, 1.0))),
             MeshMaterial3d(materials.add(StandardMaterial {
@@ -144,23 +144,23 @@ fn update_state(
     }
 
     if keyboard_input.pressed(KeyCode::KeyQ) {
-        controls.roll = -0.001;
+        controls.roll = -0.01;
     }
 
     if keyboard_input.pressed(KeyCode::KeyE) {
-        controls.roll = 0.001;
+        controls.roll = 0.01;
     }
 
     for (_, mut transform) in camera {
         transform.translation.x = plane.plane.position.x as f32;
-        transform.translation.y = plane.plane.position.z as f32 + 1.0;
+        transform.translation.y = 2.0 - 1.0 * plane.plane.position.z as f32;
         transform.translation.z = -1.0 * plane.plane.position.y as f32;
 
         let (roll, pitch, yaw) = plane.plane.pointing.euler_angles();
 
         transform.rotation = Quat::from_euler(
-            default(),
-            yaw as f32 + f32::consts::FRAC_PI_2,
+            EulerRot::YXZ,
+            yaw as f32 - f32::consts::FRAC_PI_2,
             pitch as f32,
             roll as f32,
         );
