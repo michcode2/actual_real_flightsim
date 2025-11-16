@@ -42,8 +42,6 @@ fn setup(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
-    mut camera: Query<&mut Camera>,
-    asset_server: Res<AssetServer>,
 ) {
     // cube
     commands.spawn((
@@ -113,7 +111,6 @@ fn setup(
 
 fn update_state(
     keyboard_input: Res<ButtonInput<KeyCode>>,
-    runway: Query<&mut Transform, With<RunwayMarker>>,
     time: Res<Time>,
     mut plane: ResMut<PlaneConnector>,
     mut controls: ResMut<Cockpit>,
@@ -154,7 +151,7 @@ fn update_state(
         controls.roll = 0.001;
     }
 
-    for (c, mut transform) in camera {
+    for (_, mut transform) in camera {
         transform.translation.x = plane.plane.position.x as f32;
         transform.translation.y = plane.plane.position.z as f32 + 1.0;
         transform.translation.z = -1.0 * plane.plane.position.y as f32;
@@ -172,7 +169,7 @@ fn update_state(
     plane.run(time.delta_secs_f64(), &controls.into_inner());
 }
 
-fn overlay(mut commands: Commands, text: Query<&mut Text>, plane: ResMut<PlaneConnector>) {
+fn overlay(text: Query<&mut Text>, plane: ResMut<PlaneConnector>) {
     for mut words in text {
         let (proll, ppitch, pyaw) = plane.plane.pointing.euler_angles();
         **words = format!(

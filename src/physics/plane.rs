@@ -1,4 +1,4 @@
-use nalgebra::{Quaternion, UnitQuaternion, Vector3};
+use nalgebra::{UnitQuaternion, Vector3};
 
 use crate::{physics::engine::Engine, physics::wing::Wing, ui_things::cockpit::Cockpit};
 
