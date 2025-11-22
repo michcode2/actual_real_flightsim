@@ -1,6 +1,3 @@
-use bevy::ecs::resource::Resource;
-
-#[derive(Resource)]
 pub struct Cockpit {
     pub throttle: f64,
     pub elevator: f64,

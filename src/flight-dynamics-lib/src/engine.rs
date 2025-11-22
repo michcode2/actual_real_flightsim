@@ -4,8 +4,6 @@ pub struct Engine {
 
 impl Engine {
     pub fn new() -> Engine {
-        return Engine {
-            max_thrust: 10000.0,
-        };
+        return Engine { max_thrust: 2000.0 };
     }
 }

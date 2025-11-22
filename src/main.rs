@@ -2,10 +2,7 @@ use std::f32;
 
 use bevy::{DefaultPlugins, prelude::*};
 
-use crate::{physics::plane::Plane, ui_things::cockpit::Cockpit};
-
-mod physics;
-mod ui_things;
+use flight_dynamics_lib::{cockpit::Cockpit, plane::Plane};
 
 fn main() {
     App::new()
@@ -14,13 +11,26 @@ fn main() {
         .add_systems(Update, update_state)
         .add_systems(Update, overlay)
         .insert_resource(PlaneConnector::new())
-        .insert_resource(Cockpit::new())
+        .insert_resource(CockpitConnector::new())
         .run();
 }
 
 #[derive(Resource)]
+struct CockpitConnector {
+    controls: Cockpit,
+}
+
+impl CockpitConnector {
+    fn new() -> CockpitConnector {
+        CockpitConnector {
+            controls: Cockpit::new(),
+        }
+    }
+}
+
+#[derive(Resource)]
 struct PlaneConnector {
-    plane: Plane,
+    plane: flight_dynamics_lib::plane::Plane,
 }
 
 impl PlaneConnector {
@@ -113,42 +123,42 @@ fn update_state(
     keyboard_input: Res<ButtonInput<KeyCode>>,
     time: Res<Time>,
     mut plane: ResMut<PlaneConnector>,
-    mut controls: ResMut<Cockpit>,
+    mut controls: ResMut<CockpitConnector>,
     camera: Query<(&Camera, &mut Transform), Without<RunwayMarker>>,
 ) {
-    controls.zero();
+    controls.controls.zero();
     if keyboard_input.pressed(KeyCode::KeyZ) {
-        controls.throttle += 0.1;
+        controls.controls.throttle = 1.0;
     }
 
     if keyboard_input.pressed(KeyCode::KeyX) {
-        controls.throttle -= 0.1;
+        controls.controls.throttle = 0.0;
     }
 
-    controls.throttle = controls.throttle.min(1.0).max(0.0);
+    controls.controls.throttle = controls.controls.throttle.min(1.0).max(0.0);
 
     if keyboard_input.pressed(KeyCode::KeyA) {
-        controls.yaw = 0.01;
+        controls.controls.yaw = 0.01;
     }
 
     if keyboard_input.pressed(KeyCode::KeyD) {
-        controls.yaw = -0.01;
+        controls.controls.yaw = -0.01;
     }
 
     if keyboard_input.pressed(KeyCode::KeyW) {
-        controls.elevator = -0.01;
+        controls.controls.elevator = -0.01;
     }
 
     if keyboard_input.pressed(KeyCode::KeyS) {
-        controls.elevator = 0.01;
+        controls.controls.elevator = 0.01;
     }
 
     if keyboard_input.pressed(KeyCode::KeyQ) {
-        controls.roll = -0.01;
+        controls.controls.roll = -0.01;
     }
 
     if keyboard_input.pressed(KeyCode::KeyE) {
-        controls.roll = 0.01;
+        controls.controls.roll = 0.01;
     }
 
     for (_, mut transform) in camera {
@@ -161,20 +171,23 @@ fn update_state(
         transform.rotation = Quat::from_euler(
             EulerRot::YXZ,
             yaw as f32 - f32::consts::FRAC_PI_2,
-            pitch as f32,
+            -pitch as f32,
             roll as f32,
         );
     }
 
-    plane.run(time.delta_secs_f64(), &controls.into_inner());
+    plane.run(time.delta_secs_f64(), &controls.controls);
 }
 
 fn overlay(text: Query<&mut Text>, plane: ResMut<PlaneConnector>) {
     for mut words in text {
-        let (proll, ppitch, pyaw) = plane.plane.pointing.euler_angles();
+        let (_, ppitch, _) = plane.plane.pointing.euler_angles();
         **words = format!(
-            "{pyaw:.2}\n{ppitch:.2}\n{proll:.2}\nvelocity {:?}\nposition {:?}",
-            plane.plane.velocity, plane.plane.position
+            "{:.2},\nvelocity{:?}\naltitude {:.1}\nclimb rate {:.1}",
+            ppitch * -180.0 / std::f64::consts::PI,
+            plane.plane.velocity,
+            -plane.plane.position.z,
+            -plane.plane.velocity.z
         );
         println!("p{:?}", plane.plane.position);
         println!("v{:?}", plane.plane.velocity);

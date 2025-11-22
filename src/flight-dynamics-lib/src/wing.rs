@@ -4,15 +4,25 @@ use nalgebra::Vector3;
 
 pub struct Wing {
     area: f64,
+    location_on_plane: Vector3<f64>,
 }
 #[allow(non_snake_case)]
 impl Wing {
     pub fn new_area_only(area: f64) -> Wing {
-        Wing { area }
+        Wing {
+            area,
+            location_on_plane: Vector3::new(0.0, 0.0, 0.0),
+        }
     }
 
     pub fn calculate(&self, velocity: Vector3<f64>) -> Vector3<f64> {
-        let mut alpha_rad = f64::atan(velocity.z / velocity.x);
+        println!(
+            "wing velocity: {:.1} {:.1} {:.1}",
+            velocity.x, velocity.y, velocity.z
+        );
+        let mut alpha_rad = velocity
+            .z
+            .atan2((velocity.x.powi(2) + velocity.y.powi(2)).sqrt());
         if alpha_rad.is_nan() {
             alpha_rad = 0.0;
         }
@@ -21,7 +31,7 @@ impl Wing {
         let lift = self.calculate_lift(Uinf, alpha_rad);
         let drag = self.calculate_drag(Uinf * velocity.x.signum(), alpha_rad);
 
-        Vector3::new(-drag, 0.0, lift)
+        Vector3::new(-drag, 0.0, -lift)
     }
 
     fn calculate_lift(&self, velocity: f64, alpha: f64) -> f64 {
@@ -80,6 +90,6 @@ mod test {
         let alpha_1 = under_test.calculate(velocity_alpha_1);
         println!("{:?}", alpha_1);
         assert!((alpha_1.x + 0.0006125).abs() < 1e-6);
-        assert!((alpha_1.z - 0.06125).abs() < 1e-6);
+        assert!((alpha_1.z + 0.06125).abs() < 1e-6);
     }
 }
