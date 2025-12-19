@@ -4,29 +4,42 @@ use nalgebra::Vector3;
 
 pub struct Wing {
     area: f64,
-    location_on_plane: Vector3<f64>,
+    pub location_on_plane: Vector3<f64>,
+    alpha_0: f64, // setting angle, probably how i handle flaps and controls for now
 }
+
 #[allow(non_snake_case)]
 impl Wing {
     pub fn new_area_only(area: f64) -> Wing {
         Wing {
             area,
             location_on_plane: Vector3::new(0.0, 0.0, 0.0),
+            alpha_0: 0.0,
+        }
+    }
+
+    pub fn new_area_location(area: f64, location_on_plane: Vector3<f64>) -> Wing {
+        Wing {
+            area,
+            location_on_plane,
+            alpha_0: 0.0,
         }
     }
 
     pub fn calculate(&self, velocity: Vector3<f64>) -> Vector3<f64> {
-        println!(
+        /* println!(
             "wing velocity: {:.1} {:.1} {:.1}",
             velocity.x, velocity.y, velocity.z
-        );
+        ); */
         let mut alpha_rad = velocity
             .z
             .atan2((velocity.x.powi(2) + velocity.y.powi(2)).sqrt());
         if alpha_rad.is_nan() {
             alpha_rad = 0.0;
         }
-        println!("alpha {}", alpha_rad * 180.0 / 3.14159);
+        //println!("alpha {}", alpha_rad * 180.0 / 3.14159);
+        alpha_rad += self.alpha_0;
+
         let Uinf = velocity.magnitude();
         let lift = self.calculate_lift(Uinf, alpha_rad);
         let drag = self.calculate_drag(Uinf * velocity.x.signum(), alpha_rad);
@@ -36,13 +49,13 @@ impl Wing {
 
     fn calculate_lift(&self, velocity: f64, alpha: f64) -> f64 {
         let CL = self.calculate_CL(alpha);
-        println!("CL: {CL}");
+        // println!("CL: {CL}");
         return 0.5 * 1.225 * velocity.powi(2) * self.area * CL;
     }
 
     fn calculate_drag(&self, velocity: f64, alpha: f64) -> f64 {
         let CD = self.calculate_CD(alpha);
-        println!("CD: {CD}");
+        // println!("CD: {CD}");
         return 0.5 * 1.225 * velocity.powi(2) * self.area * CD;
     }
 
@@ -61,6 +74,10 @@ impl Wing {
             return 0.1 * (0.1 * alpha).powi(2);
         }
         return 1.5;
+    }
+
+    pub fn change_alpha_null(&mut self, amount: f64) {
+        self.alpha_0 += amount
     }
 }
 

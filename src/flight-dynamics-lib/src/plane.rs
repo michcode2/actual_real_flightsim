@@ -1,3 +1,5 @@
+use std::collections::VecDeque;
+
 use nalgebra::{UnitQuaternion, Vector3};
 
 use crate::{cockpit::Cockpit, engine::Engine, wing::Wing};
@@ -17,10 +19,13 @@ impl Plane {
     /// coordinate system: x forwards, y right, z down
 
     pub fn new_solid_guess() -> Plane {
-        let wings = vec![Wing::new_area_only(17.16)];
+        let wings = vec![
+            Wing::new_area_location(17.16, Vector3::new(0.25, 0.0, 0.0)),
+            Wing::new_area_location(5.0, Vector3::new(-5.0, 0.0, 0.0)),
+        ];
         let mass = 1160.0;
         //let position = Vector3::new(0.0, 0.0, -0.35);
-        let position = Vector3::new(0.0, 0.0, 0.35);
+        let position = Vector3::new(-250.0, 0.0, 0.35);
         let velocity = Vector3::new(0.0, 0.0, 0.0);
         let acceleration = Vector3::new(0.0, 0.0, 0.0);
         let angular_velocity = UnitQuaternion::from_euler_angles(0.0, 0.0, 0.0);
@@ -47,15 +52,23 @@ impl Plane {
             })
             .sum::<Vector3<f64>>();
 
+        let mut moments = self
+            .wings
+            .iter()
+            .map(|wing| {
+                wing.location_on_plane.component_mul(
+                    &(self.pointing.inverse().to_rotation_matrix()
+                        * wing.calculate(self.pointing.to_rotation_matrix() * self.velocity)),
+                )
+            })
+            .sum::<Vector3<f64>>();
+
         forces.z += self.mass * 9.81;
-        println!(
-            "wheel {:.2}, weight: {}",
-            self.ground_force(),
-            self.mass * 9.81
-        );
         forces.z -= self.ground_force();
         forces += self.pointing.to_rotation_matrix() * self.engine_force(controls);
-        println!("forces {:?}", forces);
+        println!("moments {:?}", moments);
+
+        self.wings[1].change_alpha_null(-controls.elevator); // assuming that elevator is the second element (maybe bad assumption)
 
         self.acceleration = forces / self.mass;
         self.velocity += self.acceleration * dt;
@@ -64,8 +77,30 @@ impl Plane {
         let control_quaternion =
             UnitQuaternion::from_euler_angles(controls.roll, -controls.elevator, controls.yaw);
 
-        self.angular_velocity *= control_quaternion;
+        //self.angular_velocity *= control_quaternion;
+
+        moments += self.ground_moments();
+
+        let angular_acceleration = moments.component_div(&Vector3::new(10000.0, 100.0, 1000.0)); // units on this dont really add up but dont worry about it
+
+        self.angular_velocity *= UnitQuaternion::from_euler_angles(
+            angular_acceleration.y,
+            angular_acceleration.x,
+            angular_acceleration.z,
+        );
+
         self.pointing = self.pointing.slerp(&self.angular_velocity, dt);
+    }
+
+    fn ground_moments(&self) -> Vector3<f64> {
+        if self.position.z < -1.0 {
+            return Vector3::zeros();
+        }
+        let pointing_contrib = Vector3::new(&self.pointing.euler_angles().1 * -1000.0, 0.0, 0.0);
+        let rotating_contrib =
+            Vector3::new(&self.angular_velocity.euler_angles().1 * -10.0, 0.0, 0.0);
+
+        pointing_contrib + rotating_contrib
     }
 
     fn ground_force(&self) -> f64 {

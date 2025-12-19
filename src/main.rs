@@ -55,7 +55,7 @@ fn setup(
 ) {
     // cube
     commands.spawn((
-        Mesh3d(meshes.add(Cuboid::new(100.0, 0.1, 12.0))),
+        Mesh3d(meshes.add(Cuboid::new(550.0, 0.1, 12.0))),
         MeshMaterial3d(materials.add(StandardMaterial {
             base_color: Color::srgb(0.0, 1.0, 0.0),
             ..default()
@@ -64,16 +64,16 @@ fn setup(
         RunwayMarker,
     ));
     commands.spawn((
-        Mesh3d(meshes.add(Cuboid::new(100.0, 0.1, 10.0))),
+        Mesh3d(meshes.add(Cuboid::new(500.0, 0.1, 10.0))),
         MeshMaterial3d(materials.add(StandardMaterial {
             base_color: Color::srgb(0.2, 0.2, 0.2),
             ..default()
         })),
-        Transform::from_xyz(50.0, 0.05, 0.0),
+        Transform::from_xyz(0.0, 0.05, 0.0),
         RunwayMarker,
     ));
 
-    for i in (-0..100).step_by(10) {
+    for i in (-250..250).step_by(10) {
         commands.spawn((
             Mesh3d(meshes.add(Cuboid::new(5.0, 0.1, 1.0))),
             MeshMaterial3d(materials.add(StandardMaterial {
@@ -154,11 +154,11 @@ fn update_state(
     }
 
     if keyboard_input.pressed(KeyCode::KeyQ) {
-        controls.controls.roll = -0.01;
+        controls.controls.roll = 0.01;
     }
 
     if keyboard_input.pressed(KeyCode::KeyE) {
-        controls.controls.roll = 0.01;
+        controls.controls.roll = -0.01;
     }
 
     for (_, mut transform) in camera {
@@ -183,7 +183,7 @@ fn overlay(text: Query<&mut Text>, plane: ResMut<PlaneConnector>) {
     for mut words in text {
         let (_, ppitch, _) = plane.plane.pointing.euler_angles();
         **words = format!(
-            "{:.2},\nvelocity{:?}\naltitude {:.1}\nclimb rate {:.1}",
+            "pitch angle deg {:.2},\nvelocity{:?}\naltitude {:.1}\nclimb rate {:.1}",
             ppitch * -180.0 / std::f64::consts::PI,
             plane.plane.velocity,
             -plane.plane.position.z,
