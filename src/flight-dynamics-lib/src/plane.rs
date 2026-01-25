@@ -25,7 +25,7 @@ impl Plane {
         ];
         let mass = 1160.0;
         //let position = Vector3::new(0.0, 0.0, -0.35);
-        let position = Vector3::new(-250.0, 0.0, 0.35);
+        let position = Vector3::new(-150.0, 0.0, 0.25);
         let velocity = Vector3::new(0.0, 0.0, 0.0);
         let acceleration = Vector3::new(0.0, 0.0, 0.0);
         let angular_velocity = UnitQuaternion::from_euler_angles(0.0, 0.0, 0.0);
@@ -68,7 +68,7 @@ impl Plane {
         forces += self.pointing.to_rotation_matrix() * self.engine_force(controls);
         println!("moments {:?}", moments);
 
-        self.wings[1].change_alpha_null(-controls.elevator); // assuming that elevator is the second element (maybe bad assumption)
+        self.wings[1].change_alpha_null(controls.elevator); // assuming that elevator is the second element (maybe bad assumption)
 
         self.acceleration = forces / self.mass;
         self.velocity += self.acceleration * dt;
@@ -81,13 +81,14 @@ impl Plane {
 
         moments += self.ground_moments();
 
-        let angular_acceleration = moments.component_div(&Vector3::new(10000.0, 100.0, 1000.0)); // units on this dont really add up but dont worry about it
+        let angular_acceleration = moments.component_div(&Vector3::new(1e5, 1e3, 1e4)); // units on this dont really add up but dont worry about it
 
         self.angular_velocity *= UnitQuaternion::from_euler_angles(
             angular_acceleration.y,
             angular_acceleration.x,
             angular_acceleration.z,
-        );
+        )
+        .slerp(&UnitQuaternion::from_euler_angles(0.0, 0.0, 0.0), dt);
 
         self.pointing = self.pointing.slerp(&self.angular_velocity, dt);
     }
@@ -96,7 +97,12 @@ impl Plane {
         if self.position.z < -1.0 {
             return Vector3::zeros();
         }
-        let pointing_contrib = Vector3::new(&self.pointing.euler_angles().1 * -1000.0, 0.0, 0.0);
+        let pointing_contrib = Vector3::new(
+            (&self.pointing.euler_angles().1 + 0.1) * -100000.0,
+            0.0,
+            0.0,
+        );
+
         let rotating_contrib =
             Vector3::new(&self.angular_velocity.euler_angles().1 * -10.0, 0.0, 0.0);
 

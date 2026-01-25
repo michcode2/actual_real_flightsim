@@ -1,4 +1,4 @@
-use std::f64;
+use std::f64::{self, consts};
 
 use nalgebra::Vector3;
 
@@ -6,6 +6,7 @@ pub struct Wing {
     area: f64,
     pub location_on_plane: Vector3<f64>,
     alpha_0: f64, // setting angle, probably how i handle flaps and controls for now
+    aspect_ratio: f64,
 }
 
 #[allow(non_snake_case)]
@@ -15,6 +16,7 @@ impl Wing {
             area,
             location_on_plane: Vector3::new(0.0, 0.0, 0.0),
             alpha_0: 0.0,
+            aspect_ratio: 5.0,
         }
     }
 
@@ -23,6 +25,7 @@ impl Wing {
             area,
             location_on_plane,
             alpha_0: 0.0,
+            aspect_ratio: 7.0,
         }
     }
 
@@ -49,7 +52,7 @@ impl Wing {
 
     fn calculate_lift(&self, velocity: f64, alpha: f64) -> f64 {
         let CL = self.calculate_CL(alpha);
-        // println!("CL: {CL}");
+        println!("CL: {CL}");
         return 0.5 * 1.225 * velocity.powi(2) * self.area * CL;
     }
 
@@ -63,7 +66,7 @@ impl Wing {
     fn calculate_CL(&self, alpha_rad: f64) -> f64 {
         let alpha = alpha_rad * 180.0 / f64::consts::PI;
         if alpha.abs() < 14.0 {
-            return alpha * 0.1;
+            return alpha_rad * self.dcl_dalpha();
         }
         return 0.5;
     }
@@ -78,6 +81,11 @@ impl Wing {
 
     pub fn change_alpha_null(&mut self, amount: f64) {
         self.alpha_0 += amount
+    }
+
+    fn dcl_dalpha(&self) -> f64 {
+        let littlefrac = 2.0 / self.aspect_ratio;
+        return 2.0 * f64::consts::PI / (1.0 + littlefrac);
     }
 }
 
