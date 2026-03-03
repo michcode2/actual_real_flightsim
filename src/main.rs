@@ -36,7 +36,7 @@ struct PlaneConnector {
 impl PlaneConnector {
     fn new() -> PlaneConnector {
         PlaneConnector {
-            plane: Plane::new_solid_guess(),
+            plane: Plane::new_in_flight(),
         }
     }
 

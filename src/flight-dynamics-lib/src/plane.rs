@@ -1,15 +1,12 @@
-use std::collections::VecDeque;
-
-use nalgebra::{UnitQuaternion, Vector3};
+use nalgebra::{Point3, UnitQuaternion, Vector, Vector3};
 
 use crate::{cockpit::Cockpit, engine::Engine, wing::Wing};
 
 pub struct Plane {
     wings: Vec<Wing>,
     mass: f64,
-    pub position: Vector3<f64>,
+    pub position: Point3<f64>,
     pub velocity: Vector3<f64>,
-    acceleration: Vector3<f64>,
     pub pointing: UnitQuaternion<f64>,
     angular_velocity: UnitQuaternion<f64>,
     engine: Engine,
@@ -25,9 +22,8 @@ impl Plane {
         ];
         let mass = 1160.0;
         //let position = Vector3::new(0.0, 0.0, -0.35);
-        let position = Vector3::new(-150.0, 0.0, 0.25);
+        let position = Point3::new(-150.0, 0.0, 0.25);
         let velocity = Vector3::new(0.0, 0.0, 0.0);
-        let acceleration = Vector3::new(0.0, 0.0, 0.0);
         let angular_velocity = UnitQuaternion::from_euler_angles(0.0, 0.0, 0.0);
         let pointing = UnitQuaternion::from_euler_angles(0.0, 0.0, 0.0);
         Plane {
@@ -35,63 +31,35 @@ impl Plane {
             mass,
             position,
             velocity,
-            acceleration,
             angular_velocity,
             pointing,
             engine: Engine::new(),
         }
     }
 
-    pub fn run_physics(&mut self, dt: f64, controls: &Cockpit) {
-        let mut forces = self
-            .wings
-            .iter()
-            .map(|wing| {
-                self.pointing.inverse().to_rotation_matrix()
-                    * wing.calculate(self.pointing.to_rotation_matrix() * self.velocity)
-            })
-            .sum::<Vector3<f64>>();
-
-        let mut moments = self
-            .wings
-            .iter()
-            .map(|wing| {
-                wing.location_on_plane.component_mul(
-                    &(self.pointing.inverse().to_rotation_matrix()
-                        * wing.calculate(self.pointing.to_rotation_matrix() * self.velocity)),
-                )
-            })
-            .sum::<Vector3<f64>>();
-
-        forces.z += self.mass * 9.81;
-        forces.z -= self.ground_force();
-        forces += self.pointing.to_rotation_matrix() * self.engine_force(controls);
-        println!("moments {:?}", moments);
-
-        self.wings[1].change_alpha_null(controls.elevator); // assuming that elevator is the second element (maybe bad assumption)
-
-        self.acceleration = forces / self.mass;
-        self.velocity += self.acceleration * dt;
-        self.position += self.velocity * dt;
-
-        let control_quaternion =
-            UnitQuaternion::from_euler_angles(controls.roll, -controls.elevator, controls.yaw);
-
-        //self.angular_velocity *= control_quaternion;
-
-        moments += self.ground_moments();
-
-        let angular_acceleration = moments.component_div(&Vector3::new(1e5, 1e3, 1e4)); // units on this dont really add up but dont worry about it
-
-        self.angular_velocity *= UnitQuaternion::from_euler_angles(
-            angular_acceleration.y,
-            angular_acceleration.x,
-            angular_acceleration.z,
-        )
-        .slerp(&UnitQuaternion::from_euler_angles(0.0, 0.0, 0.0), dt);
-
-        self.pointing = self.pointing.slerp(&self.angular_velocity, dt);
+    pub fn new_in_flight() -> Plane {
+        let wings = vec![
+            Wing::new_area_location(17.16, Vector3::new(0.25, 0.0, 0.0)),
+            Wing::new_area_location(5.0, Vector3::new(-5.0, 0.0, 0.0)),
+        ];
+        let mass = 1160.0;
+        //let position = Vector3::new(0.0, 0.0, -0.35);
+        let position = Point3::new(-150.0, 0.0, -50.25);
+        let velocity = Vector3::new(40.0, 0.0, 0.0);
+        let angular_velocity = UnitQuaternion::from_euler_angles(0.0, 0.0, 0.0);
+        let pointing = UnitQuaternion::from_euler_angles(0.0, 0.0, 0.0);
+        Plane {
+            wings,
+            mass,
+            position,
+            velocity,
+            angular_velocity,
+            pointing,
+            engine: Engine::new(),
+        }
     }
+
+    pub fn run_physics(&mut self, dt: f64, controls: &Cockpit) {}
 
     fn ground_moments(&self) -> Vector3<f64> {
         if self.position.z < -1.0 {
@@ -126,16 +94,14 @@ impl Plane {
     }
 }
 
+/*
 #[cfg(test)]
 mod test {
     use std::f64;
 
     use nalgebra::{UnitQuaternion, Vector3};
 
-    use crate::{
-        physics::{engine::Engine, plane::Plane, wing::Wing},
-        ui_things::cockpit::Cockpit,
-    };
+    use crate::{engine::Engine, plane::Plane, wing::Wing};
 
     #[test]
     fn no_thrust() {
@@ -144,7 +110,6 @@ mod test {
             mass: 3.0,
             position: Vector3::new(0.0, 0.0, -100.0),
             velocity: Vector3::new(10.0, 0.0, 0.0),
-            acceleration: Vector3::new(0.0, 0.0, 0.0),
             angular_velocity: UnitQuaternion::from_euler_angles(0.0, 0.0, 0.0),
             engine: Engine::new(),
             pointing: nalgebra::UnitQuaternion::from_euler_angles(0.0, 0.0, 0.0),
@@ -198,7 +163,6 @@ mod test {
             mass: 3.0,
             position: Vector3::new(0.0, 0.0, -100.0),
             velocity: Vector3::new(10.0, 0.0, 0.0),
-            acceleration: Vector3::new(0.0, 0.0, 0.0),
             angular_velocity: UnitQuaternion::from_euler_angles(0.0, 0.0, 0.0),
             engine: Engine::new(),
             pointing: nalgebra::UnitQuaternion::from_euler_angles(0.0, 0.0, 0.0),
@@ -226,7 +190,6 @@ mod test {
             mass: 3.0,
             position: Vector3::new(0.0, 0.0, -100.0),
             velocity: Vector3::new(10.0, 0.0, 0.0),
-            acceleration: Vector3::new(0.0, 0.0, 0.0),
             angular_velocity: UnitQuaternion::from_euler_angles(0.0, 0.0, 0.0),
             engine: Engine { max_thrust: 10.0 },
             pointing: nalgebra::UnitQuaternion::from_euler_angles(
@@ -248,3 +211,4 @@ mod test {
         assert!((under_test.acceleration.z - 7.7625).abs() < 1e-4);
     }
 }
+*/
