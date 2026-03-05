@@ -1,14 +1,12 @@
-use nalgebra::{Point3, UnitQuaternion, Vector, Vector3};
+use nalgebra::{Isometry3, Point3, UnitQuaternion, Vector, Vector3};
 
 use crate::{cockpit::Cockpit, engine::Engine, wing::Wing};
 
 pub struct Plane {
     wings: Vec<Wing>,
     mass: f64,
-    pub position: Point3<f64>,
-    pub velocity: Vector3<f64>,
-    pub pointing: UnitQuaternion<f64>,
-    angular_velocity: UnitQuaternion<f64>,
+    pub transform_in_world: Isometry3<f64>,
+    pub transform_rate_in_world: Isometry3<f64>,
     engine: Engine,
 }
 
@@ -22,17 +20,13 @@ impl Plane {
         ];
         let mass = 1160.0;
         //let position = Vector3::new(0.0, 0.0, -0.35);
-        let position = Point3::new(-150.0, 0.0, 0.25);
+        let position = Vector3::new(-150.0, 0.0, 0.25);
         let velocity = Vector3::new(0.0, 0.0, 0.0);
-        let angular_velocity = UnitQuaternion::from_euler_angles(0.0, 0.0, 0.0);
-        let pointing = UnitQuaternion::from_euler_angles(0.0, 0.0, 0.0);
         Plane {
             wings,
             mass,
-            position,
-            velocity,
-            angular_velocity,
-            pointing,
+            transform_in_world: Isometry3::new(position, nalgebra::zero()),
+            transform_rate_in_world: Isometry3::new(velocity, nalgebra::zero()),
             engine: Engine::new(),
         }
     }
@@ -44,35 +38,53 @@ impl Plane {
         ];
         let mass = 1160.0;
         //let position = Vector3::new(0.0, 0.0, -0.35);
-        let position = Point3::new(-150.0, 0.0, -50.25);
+        let position = Vector3::new(-150.0, 0.0, -50.25);
         let velocity = Vector3::new(40.0, 0.0, 0.0);
         let angular_velocity = UnitQuaternion::from_euler_angles(0.0, 0.0, 0.0);
         let pointing = UnitQuaternion::from_euler_angles(0.0, 0.0, 0.0);
         Plane {
             wings,
             mass,
-            position,
-            velocity,
-            angular_velocity,
-            pointing,
+            transform_in_world: Isometry3::new(position, nalgebra::zero()),
+            transform_rate_in_world: Isometry3::new(velocity, nalgebra::zero()),
             engine: Engine::new(),
         }
     }
 
-    pub fn run_physics(&mut self, dt: f64, controls: &Cockpit) {}
+    pub fn run_physics(&mut self, dt: f64, controls: &Cockpit) {
+        let aero_forces: Vector3<f64> = self
+            .wings
+            .iter()
+            .map(|wing| wing.calculate_forces(&self.plane_velocity()))
+            .sum();
+    }
+
+    fn calculate_all_forces(&mut self) -> Vector3<f64> {
+        return nalgebra::zero();
+    }
+
+    pub fn plane_velocity(&self) -> Vector3<f64> {
+        return (self.transform_in_world.rotation.inverse()
+            * self.transform_rate_in_world.translation)
+            .translation
+            .vector;
+    }
 
     fn ground_moments(&self) -> Vector3<f64> {
-        if self.position.z < -1.0 {
+        if self.transform_in_world.translation.z < -1.0 {
             return Vector3::zeros();
         }
         let pointing_contrib = Vector3::new(
-            (&self.pointing.euler_angles().1 + 0.1) * -100000.0,
+            (&self.transform_in_world.rotation.euler_angles().1 + 0.1) * -100000.0,
             0.0,
             0.0,
         );
 
-        let rotating_contrib =
-            Vector3::new(&self.angular_velocity.euler_angles().1 * -10.0, 0.0, 0.0);
+        let rotating_contrib = Vector3::new(
+            &self.transform_rate_in_world.rotation.euler_angles().1 * -10.0,
+            0.0,
+            0.0,
+        );
 
         pointing_contrib + rotating_contrib
     }
@@ -80,11 +92,11 @@ impl Plane {
     fn ground_force(&self) -> f64 {
         let k = 15000.0;
         let k_d = 1500.0;
-        if self.position.z < -1.0 {
+        if self.transform_in_world.translation.z < -1.0 {
             return 0.0;
         } else {
-            let spring = k * (self.position.z + 1.0);
-            let damper = k_d * self.velocity.z;
+            let spring = k * (self.transform_in_world.translation.z + 1.0);
+            let damper = k_d * self.transform_rate_in_world.translation.z;
             return spring + damper;
         }
     }
@@ -94,121 +106,45 @@ impl Plane {
     }
 }
 
-/*
 #[cfg(test)]
 mod test {
-    use std::f64;
+    use std::f64::consts::PI;
 
-    use nalgebra::{UnitQuaternion, Vector3};
+    use nalgebra::{Isometry3, UnitQuaternion, Vector3};
 
     use crate::{engine::Engine, plane::Plane, wing::Wing};
 
-    #[test]
-    fn no_thrust() {
-        let mut under_test = Plane {
-            wings: vec![Wing::new_area_only(1.0)],
-            mass: 3.0,
-            position: Vector3::new(0.0, 0.0, -100.0),
-            velocity: Vector3::new(10.0, 0.0, 0.0),
-            angular_velocity: UnitQuaternion::from_euler_angles(0.0, 0.0, 0.0),
+    fn make_default_aircraft() -> Plane {
+        Plane {
+            wings: vec![Wing::new_area_location(5.0, Vector3::new(-1.0, 0.0, 0.0))],
+            mass: 10.0,
             engine: Engine::new(),
-            pointing: nalgebra::UnitQuaternion::from_euler_angles(0.0, 0.0, 0.0),
-        };
-
-        let handsfree = Cockpit::new();
-
-        under_test.run_physics(0.01, &handsfree);
-
-        println!(
-            "{:?}\n{:?}\n{:?}",
-            under_test.position, under_test.velocity, under_test.acceleration
-        );
-
-        assert!(under_test.position.x == 0.01 * 10.0);
-        assert!(under_test.position.y == 0.0);
-        assert!((under_test.position.z + 99.999).abs() < 1e-3);
+            transform_in_world: Isometry3::new(nalgebra::zero(), nalgebra::zero()),
+            transform_rate_in_world: Isometry3::new(Vector3::new(10.0, 0.0, 0.0), nalgebra::zero()),
+        }
     }
 
     #[test]
-    fn no_thrust_rotated() {
-        let mut under_test = Plane {
-            wings: vec![Wing::new_area_only(1.0)],
-            mass: 3.0,
-            position: Vector3::new(0.0, 0.0, -100.0),
-            velocity: Vector3::new(0.0, 10.0, 0.0),
-            acceleration: Vector3::new(0.0, 0.0, 0.0),
-            angular_velocity: UnitQuaternion::from_euler_angles(0.0, 0.0, 0.0),
-            engine: Engine::new(),
-            pointing: nalgebra::UnitQuaternion::from_euler_angles(0.0, 0.0, f64::consts::FRAC_PI_2),
-        };
-
-        let handsfree = Cockpit::new();
-
-        under_test.run_physics(0.01, &handsfree);
-
-        println!(
-            "{:?}\n{:?}\n{:?}",
-            under_test.position, under_test.velocity, under_test.acceleration
-        );
-
-        assert!(under_test.position.y == 0.01 * 10.0);
-        assert!(under_test.position.x == 0.0);
-        assert!((under_test.position.z + 99.999).abs() < 1e-3);
+    fn plane_velocity_pointing_north() {
+        let under_test = make_default_aircraft();
+        assert_eq!(under_test.plane_velocity(), Vector3::new(10.0, 0.0, 0.0));
     }
 
     #[test]
-    fn some_thrust() {
-        let mut under_test = Plane {
-            wings: vec![Wing::new_area_only(1.0)],
-            mass: 3.0,
-            position: Vector3::new(0.0, 0.0, -100.0),
-            velocity: Vector3::new(10.0, 0.0, 0.0),
-            angular_velocity: UnitQuaternion::from_euler_angles(0.0, 0.0, 0.0),
-            engine: Engine::new(),
-            pointing: nalgebra::UnitQuaternion::from_euler_angles(0.0, 0.0, 0.0),
-        };
-        let mut handsfree = Cockpit::new();
-        handsfree.throttle = 0.1;
-
-        under_test.run_physics(0.01, &handsfree);
-
-        println!(
-            "{:?}\n{:?}\n{:?}",
-            under_test.position, under_test.velocity, under_test.acceleration
-        );
-
-        assert!(under_test.position.y == 0.0);
-        assert!(under_test.velocity.y == 0.0);
-        assert!(under_test.acceleration.y == 0.0);
-        assert!(under_test.position.x == under_test.velocity.x * 0.01);
+    fn plane_velocity_pointing_east_with_translation() {
+        let mut under_test = make_default_aircraft();
+        under_test.transform_in_world.rotation =
+            UnitQuaternion::from_euler_angles(0.0, 0.0, PI / 2.0);
+        under_test.transform_in_world.translation.vector = Vector3::new(10.0, 64.2, 1.5);
+        assert!((under_test.plane_velocity().y - -10.0).abs() < 1e-3);
     }
 
     #[test]
-    fn some_alpha() {
-        let mut under_test = Plane {
-            wings: vec![Wing::new_area_only(1.0)],
-            mass: 3.0,
-            position: Vector3::new(0.0, 0.0, -100.0),
-            velocity: Vector3::new(10.0, 0.0, 0.0),
-            angular_velocity: UnitQuaternion::from_euler_angles(0.0, 0.0, 0.0),
-            engine: Engine { max_thrust: 10.0 },
-            pointing: nalgebra::UnitQuaternion::from_euler_angles(
-                0.0,
-                f64::consts::PI / 180.0,
-                0.0,
-            ),
-        };
-        let mut handsfree = Cockpit::new();
-        handsfree.throttle = 0.1;
-
-        under_test.run_physics(0.01, &handsfree);
-
-        println!(
-            "{:?}\n{:?}\n{:?}",
-            under_test.position, under_test.velocity, under_test.acceleration
-        );
-
-        assert!((under_test.acceleration.z - 7.7625).abs() < 1e-4);
+    fn plane_velocity_pitched_45_degrees() {
+        let mut under_test = make_default_aircraft();
+        under_test.transform_in_world.rotation =
+            UnitQuaternion::from_euler_angles(0.0, PI / 4.0, 0.0);
+        let velocity = under_test.plane_velocity();
+        assert!((velocity.z - velocity.x).abs() < 1e-6);
     }
 }
-*/

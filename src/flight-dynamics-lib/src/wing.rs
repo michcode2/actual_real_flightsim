@@ -28,6 +28,7 @@ impl Wing {
 
     /// take in velocity in the aircraft coordinates, transform it to be in wing coordinates, do lift and drag, transform it back to aircraft
     /// cl and cd are crude for now
+    #[allow(non_snake_case)]
     pub fn calculate_forces(&self, velocity_body: &Vector3<f64>) -> Vector3<f64> {
         let velocity_wing = self.transform_on_plane.rotation * velocity_body;
         let U_inf = velocity_wing.magnitude();
@@ -52,6 +53,7 @@ impl Wing {
             .component_mul(&forces);
     }
 
+    #[allow(dead_code)]
     fn dcl_dalpha(&self) -> f64 {
         let littlefrac = 2.0 / self.aspect_ratio;
         return 2.0 * f64::consts::PI / (1.0 + littlefrac);
@@ -67,6 +69,7 @@ mod test {
     use crate::wing::Wing;
 
     #[test]
+    #[allow(non_snake_case)]
     fn zero_lift_zero_rotation() {
         let mut under_test = Wing::new_area_only(1.0);
         under_test.transform_on_plane.translation = Translation3::new(1.0, 0.0, 0.0);
@@ -82,6 +85,7 @@ mod test {
     }
 
     #[test]
+    #[allow(non_snake_case)]
     fn alpha_is_1() {
         let pi = 3.14159_f64;
         let mut under_test = Wing::new_area_only(1.0);
@@ -97,6 +101,7 @@ mod test {
     }
 
     #[test]
+    #[allow(non_snake_case)]
     fn setting_angle_is_1() {
         let pi = 3.14159_f64;
         let mut under_test = Wing::new_area_only(1.0);
@@ -112,6 +117,7 @@ mod test {
     }
 
     #[test]
+    #[allow(non_snake_case)]
     fn setting_angle_and_alpha_are_1() {
         let pi = 3.14159_f64;
         let mut under_test = Wing::new_area_only(1.0);
@@ -125,6 +131,7 @@ mod test {
     }
 
     #[test]
+    #[allow(non_snake_case)]
     fn rotated_wing_gives_equal_x_and_y() {
         let pi = 3.14159_f64;
         let mut under_test = Wing::new_area_only(1.0);
@@ -135,5 +142,7 @@ mod test {
         let forces = under_test.calculate_forces(&U_inf);
 
         println!("{:?}", forces);
+
+        assert!((forces.z - forces.y).abs() < 1e-3);
     }
 }
